@@ -100,39 +100,44 @@ class RecipeIndex(Resource):
        return [recipe.to_dict() for recipe in recipes], 200
 
    def post(self):
-     request_json = request.get_json()
-     if request_json is None:
-         return {'error': '422 Unprocessable Entity'}, 422
- 
-     title = request_json.get('title')
-     instructions = request_json.get('instructions')
-     minutes_to_complete = request_json.get('minutes_to_complete')
- 
-     if not title or not instructions or not minutes_to_complete:
-         return {'error': '422 Unprocessable Entity'}, 422
- 
-     user_id = session.get('user_id')
-     if not user_id:
-         return {'error': '401 Unauthorized'}, 401
- 
-     try:
-         recipe = Recipe(
-             title=title,
-             instructions=instructions,
-             minutes_to_complete=minutes_to_complete,
-             user_id=user_id,
-         )
- 
-         db.session.add(recipe)
-         db.session.commit()
-         return recipe.to_dict(), 201
- 
-     except IntegrityError as e:
-         db.session.rollback()  # Rollback the session on error
-         return {'error': '422 Unprocessable Entity', 'message': str(e)}, 422
-     except Exception as e:
-         db.session.rollback()  # Rollback the session on any other error
-         return {'error': '500 Internal Server Error', 'message': str(e)}, 500
+    request_json = request.get_json()
+    if request_json is None:
+        return {'error': '422 Unprocessable Entity'}, 422
+
+    title = request_json.get('title')
+    instructions = request_json.get('instructions')
+    minutes_to_complete = request_json.get('minutes_to_complete')
+
+    # Validate input
+    if not title or not instructions or minutes_to_complete is None:
+        return {'error': '422 Unprocessable Entity'}, 422
+
+    # Validate that minutes_to_complete is an integer
+    if len(instructions) < 50:
+        return {'error': '422 Unprocessable Entity', 'message': 'minutes_to_complete must be an integer'}, 422
+
+    user_id = session.get('user_id')
+    if not user_id:
+        return {'error': '401 Unauthorized'}, 401
+
+    try:
+        recipe = Recipe(
+            title=title,
+            instructions=instructions,
+            minutes_to_complete=minutes_to_complete,
+            user_id=user_id,
+        )
+
+        db.session.add(recipe)
+        db.session.commit()
+        return recipe.to_dict(), 201
+
+    except IntegrityError as e:
+        db.session.rollback()  # Rollback the session on error
+        return {'error': '422 Unprocessable Entity', 'message': str(e)}, 422
+    except Exception as e:
+        db.session.rollback()  # Rollback the session on any other error
+        return {'error': '500 Internal Server Error', 'message': str(e)}, 500
 
 
 api.add_resource(Signup, '/signup', endpoint='signup')
